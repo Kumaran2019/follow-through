@@ -1,8 +1,8 @@
 "use client";
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   AlertTriangle, ArrowRight, CalendarCheck, CalendarPlus, Check, CheckCircle2, ChevronDown, CircleDashed, Copy, HelpCircle,
-  Loader2, Mic, Quote, RefreshCw, Sparkles, Undo2, Wand2,
+  Keyboard, Loader2, Mic, Quote, Square, RefreshCw, Sparkles, Undo2, Wand2,
 } from "lucide-react";
 import { authHeaders, api, localToday } from "@/lib/client";
 import { createReminder } from "@/lib/calendar";
@@ -45,6 +45,117 @@ export function CaptureView({ mode, data, reload, googleToken, setGoogleToken, g
     clearTimeout(typingTimer.current);
     typingTimer.current = setTimeout(() => setTyping(false), 1200);
   }
+
+  // ---- Voice capture: live transcription + real mic levels for the waveform ----
+  const BARS = 18;
+  const [recording, setRecording] = useState(false);
+  const [typeMode, setTypeMode] = useState(false);
+  const [levels, setLevels] = useState<number[]>(Array(BARS).fill(0.18));
+  const [voiceNote, setVoiceNote] = useState("");
+  const recRef = useRef<any>(null);
+  const keepRecording = useRef(false);
+  const baseText = useRef("");
+  const finalText = useRef("");
+  const audioRef = useRef<{ ctx: AudioContext; stream: MediaStream; raf: number } | null>(null);
+
+  function stopAudio() {
+    const a = audioRef.current;
+    if (!a) return;
+    cancelAnimationFrame(a.raf);
+    a.stream.getTracks().forEach((t) => t.stop());
+    a.ctx.close().catch(() => {});
+    audioRef.current = null;
+    setLevels(Array(BARS).fill(0.18));
+  }
+
+  async function startAudio() {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const ctx = new AudioContext();
+      const analyser = ctx.createAnalyser();
+      analyser.fftSize = 64;
+      ctx.createMediaStreamSource(stream).connect(analyser);
+      const data = new Uint8Array(analyser.frequencyBinCount);
+      const tick = () => {
+        analyser.getByteFrequencyData(data);
+        const next = Array.from({ length: BARS }, (_, i) => {
+          const v = data[Math.min(data.length - 1, i + 1)] / 255;
+          return Math.max(0.12, Math.min(1, v * 1.4));
+        });
+        setLevels(next);
+        if (audioRef.current) audioRef.current.raf = requestAnimationFrame(tick);
+      };
+      audioRef.current = { ctx, stream, raf: requestAnimationFrame(tick) };
+    } catch {
+      // Waveform falls back to the CSS animation.
+    }
+  }
+
+  function stopRecording() {
+    keepRecording.current = false;
+    try { recRef.current?.stop(); } catch {}
+    recRef.current = null;
+    stopAudio();
+    setRecording(false);
+  }
+
+  async function startRecording() {
+    setVoiceNote("");
+    setTypeMode(false);
+    const SR: any = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (!SR) {
+      setVoiceNote("Voice recording isn’t supported in this browser. Use Chrome or Edge, or click Type and dictate with Wispr Flow.");
+      return;
+    }
+    const rec = new SR();
+    rec.continuous = true;
+    rec.interimResults = true;
+    rec.lang = navigator.language || "en-US";
+    baseText.current = text.trim() ? text.trim() + " " : "";
+    finalText.current = "";
+    rec.onresult = (e: any) => {
+      let interim = "";
+      for (let i = e.resultIndex; i < e.results.length; i++) {
+        const r = e.results[i];
+        if (r.isFinal) finalText.current += r[0].transcript.trim() + " ";
+        else interim += r[0].transcript;
+      }
+      onText(baseText.current + finalText.current + interim);
+    };
+    rec.onerror = (e: any) => {
+      if (e.error === "not-allowed" || e.error === "service-not-allowed") {
+        setVoiceNote("Microphone access was blocked. Allow it in the browser’s address bar, then try again.");
+        stopRecording();
+      }
+    };
+    rec.onend = () => {
+      // Browsers stop after a pause. Keep going until the user clicks Stop.
+      if (keepRecording.current) {
+        baseText.current = baseText.current + finalText.current;
+        finalText.current = "";
+        try { rec.start(); } catch {}
+      }
+    };
+    recRef.current = rec;
+    keepRecording.current = true;
+    try {
+      rec.start();
+      setRecording(true);
+      startAudio();
+    } catch {
+      setVoiceNote("Couldn’t start the microphone. Try again.");
+      keepRecording.current = false;
+    }
+  }
+
+  function startTyping() {
+    if (recording) stopRecording();
+    setTypeMode(true);
+    setVoiceNote("");
+    requestAnimationFrame(() => textRef.current?.focus());
+  }
+
+  useEffect(() => () => { keepRecording.current = false; try { recRef.current?.stop(); } catch {} stopAudio(); }, []);
 
   const people = data.people.map((p) => p.name);
 
@@ -187,8 +298,8 @@ export function CaptureView({ mode, data, reload, googleToken, setGoogleToken, g
       <div className="animate-rise">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-2.5">
-            <span className={cn("h-2.5 w-2.5 rounded-full", typing ? "animate-pulseDot bg-warn" : "bg-[#3A3A3E]")} />
-            <span className="font-mono text-xs tracking-[0.1em] text-soft">{typing ? "CAPTURING" : "READY"} · {words} WORDS</span>
+            <span className={cn("h-2.5 w-2.5 rounded-full", recording ? "animate-pulseDot bg-warn" : typing || typeMode ? "bg-brand" : "bg-[#3A3A3E]")} />
+            <span className="font-mono text-xs tracking-[0.1em] text-soft">{recording ? "RECORDING" : typing ? "CAPTURING" : typeMode ? "READY TO TYPE" : "READY"} · {words} WORDS</span>
           </div>
           <Button variant="ghost" size="sm" icon={<Wand2 className="h-4 w-4" />} onClick={loadSample}>Use sample recap</Button>
         </div>
@@ -223,29 +334,64 @@ export function CaptureView({ mode, data, reload, googleToken, setGoogleToken, g
           })}
         </div>
 
-        <div aria-hidden="true" className="mt-12 flex h-[96px] items-center gap-[6px]">
-          {[40, 90, 60, 96, 70, 88, 50, 96, 80, 56, 92, 64, 96, 44, 84, 52, 36, 24].map((h, i) => (
-            <span
-              key={i}
-              className={cn("w-[6px] rounded-full", typing ? "ft-bar" : "ft-bar-idle", i > 13 ? "bg-[#3A4A1A]" : "bg-brand")}
-              style={{ height: h, animationDelay: `${(i * 0.12) % 1.1}s`, transition: "transform 300ms ease" }}
-            />
-          ))}
+        <div className="mt-12 flex flex-wrap items-center gap-6">
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={recording ? stopRecording : startRecording}
+              aria-pressed={recording}
+              className={cn(
+                "inline-flex h-14 items-center gap-2.5 rounded-full pl-5 pr-6 text-[15px] font-semibold transition-colors",
+                recording ? "bg-warn text-canvas hover:bg-warn/90" : "bg-brand text-brand-ink hover:bg-brand/85"
+              )}
+            >
+              {recording ? <Square className="h-4 w-4 fill-current" /> : <Mic className="h-5 w-5" />}
+              {recording ? "Stop recording" : "Record"}
+            </button>
+            <button
+              type="button"
+              onClick={startTyping}
+              aria-pressed={typeMode && !recording}
+              className={cn("inline-flex h-14 items-center gap-2.5 rounded-full border px-6 text-[15px] transition-colors", typeMode && !recording ? "border-brand/60 text-ink" : "border-[#2A2A2D] text-soft hover:text-ink")}
+            >
+              <Keyboard className="h-5 w-5" /> Type or Wispr Flow
+            </button>
+          </div>
+
+          <div aria-hidden="true" className="flex h-[96px] items-center gap-[6px]">
+            {[40, 90, 60, 96, 70, 88, 50, 96, 80, 56, 92, 64, 96, 44, 84, 52, 36, 24].map((h, i) => (
+              <span
+                key={i}
+                className={cn("w-[6px] rounded-full", !recording && (typing || typeMode) ? "ft-bar" : !recording ? "ft-bar-idle" : "", i > 13 ? "bg-[#3A4A1A]" : recording ? "bg-warn" : "bg-brand")}
+                style={{
+                  height: h,
+                  animationDelay: `${(i * 0.12) % 1.1}s`,
+                  transition: "transform 90ms linear",
+                  ...(recording ? { transform: `scaleY(${levels[i]})` } : {}),
+                }}
+              />
+            ))}
+          </div>
         </div>
+
+        {voiceNote && <p className="mt-4 text-sm text-warn">{voiceNote}</p>}
+        {typeMode && !recording && !voiceNote && <p className="mt-4 text-sm text-faint">Type below, or hold your Wispr Flow key and speak. Text lands in the box.</p>}
 
         <textarea
           ref={textRef}
           value={text}
           onChange={(e) => onText(e.target.value)}
+          onFocus={() => { if (!recording) setTypeMode(true); }}
+          readOnly={recording}
           aria-label="What happened in the meeting"
-          placeholder={"Click here and speak with Wispr Flow.\nSay it like you would to a colleague: “Priya will check the effort by Tuesday, no wait, Thursday…”"}
+          placeholder={"Hit Record and talk, or Type.\nSay it like you would to a colleague: “Priya will check the effort by Tuesday, no wait, Thursday…”"}
           className="scroll-thin mt-8 min-h-[300px] w-full resize-none bg-transparent text-[24px] font-medium leading-[1.35] tracking-[-0.02em] text-ink placeholder:text-[#4A4A4E] focus:outline-none sm:text-[32px]"
         />
 
         <div className="sticky bottom-5 mt-8">
           <div className="flex flex-wrap items-center justify-between gap-3 rounded-full border border-[#2A2A2D] bg-surface py-2.5 pl-6 pr-2.5 shadow-pop">
             <p className="flex items-center gap-2 text-sm text-faint"><Mic className="h-4 w-4" /> Speak naturally. Filler and corrections get cleaned up. Nothing posts until you approve.</p>
-            <Button variant="primary" size="lg" icon={<Sparkles className="h-4 w-4" />} disabled={text.trim().length < 20} onClick={run}>Run the agent</Button>
+            <Button variant="primary" size="lg" icon={<Sparkles className="h-4 w-4" />} disabled={text.trim().length < 20} onClick={() => { if (recording) stopRecording(); run(); }}>Run the agent</Button>
           </div>
         </div>
       </div>
