@@ -1,0 +1,71 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --canvas: 246 245 241;
+  --surface: 255 255 255;
+  --raised: 250 249 246;
+  --line: 229 227 220;
+  --ink: 26 26 23;
+  --soft: 88 86 80;
+  --faint: 138 135 128;
+  --brand: 12 107 88;
+  --brand-ink: 255 255 255;
+  --brand-wash: 228 241 236;
+  --warn: 176 82 10;
+  --warn-wash: 253 241 222;
+  --ask: 103 56 200;
+  --ask-wash: 242 236 254;
+  --good: 22 120 64;
+  --good-wash: 229 244 234;
+  --bad: 180 35 35;
+  --bad-wash: 253 235 235;
+  color-scheme: light;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --canvas: 16 16 15;
+    --surface: 23 23 21;
+    --raised: 29 29 27;
+    --line: 45 44 41;
+    --ink: 236 234 228;
+    --soft: 172 169 160;
+    --faint: 122 119 112;
+    --brand: 86 199 165;
+    --brand-ink: 8 30 24;
+    --brand-wash: 20 45 38;
+    --warn: 242 176 92;
+    --warn-wash: 52 37 17;
+    --ask: 183 156 255;
+    --ask-wash: 39 30 62;
+    --good: 112 208 150;
+    --good-wash: 20 43 30;
+    --bad: 246 140 140;
+    --bad-wash: 58 23 23;
+    color-scheme: dark;
+  }
+}
+
+html, body { height: 100%; }
+body {
+  background: rgb(var(--canvas));
+  color: rgb(var(--ink));
+  -webkit-font-smoothing: antialiased;
+  font-feature-settings: "ss01", "cv11";
+}
+
+::selection { background: rgb(var(--brand) / 0.2); }
+
+.focus-ring:focus-visible, button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible {
+  outline: 2px solid rgb(var(--brand));
+  outline-offset: 2px;
+}
+
+.scroll-thin { scrollbar-width: thin; scrollbar-color: rgb(var(--line)) transparent; }
+
+input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.6; cursor: pointer; }
+@media (prefers-color-scheme: dark) {
+  input[type="date"]::-webkit-calendar-picker-indicator { filter: invert(1); }
+}
