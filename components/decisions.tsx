@@ -22,9 +22,9 @@ export function DecisionsView({ data }: Shared) {
           <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-faint" />
           <input className={cn(inputCls, "pl-9")} placeholder="Search decisions" value={q} onChange={(e) => setQ(e.target.value)} />
         </div>
-        <div className="inline-flex rounded-lg border border-line bg-surface p-0.5">
+        <div className="inline-flex rounded-full border border-line bg-surface p-1">
           {(["all", "active"] as const).map((f) => (
-            <button key={f} onClick={() => setFilter(f)} className={cn("rounded-md px-3 py-1.5 text-sm", filter === f ? "bg-ink text-canvas" : "text-soft hover:text-ink")}>
+            <button key={f} onClick={() => setFilter(f)} className={cn("rounded-full px-3.5 py-1.5 text-sm", filter === f ? "bg-ink text-canvas" : "text-soft hover:text-ink")}>
               {f === "all" ? "All" : "Active only"}
             </button>
           ))}

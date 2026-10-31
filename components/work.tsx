@@ -68,12 +68,12 @@ export function WorkView({ mode, data, reload, googleToken, setGoogleToken }: Sh
       <PageHeader title="Commitments" sub="What you promised, what others promised you, and everything the team is on the hook for." />
 
       <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
-        <div className="inline-flex rounded-lg border border-line bg-surface p-0.5">
+        <div className="inline-flex rounded-full border border-line bg-surface p-1">
           {tabs.map((t) => (
             <button
               key={t.id}
               onClick={() => setTab(t.id)}
-              className={cn("flex items-center gap-2 rounded-md px-3 py-1.5 text-sm transition-colors", tab === t.id ? "bg-ink text-canvas" : "text-soft hover:text-ink")}
+              className={cn("flex items-center gap-2 rounded-full px-3.5 py-1.5 text-sm transition-colors", tab === t.id ? "bg-ink text-canvas" : "text-soft hover:text-ink")}
             >
               {t.label}
               <span className={cn("text-xs tabular-nums", tab === t.id ? "opacity-70" : "text-faint")}>{t.n}</span>
@@ -81,7 +81,7 @@ export function WorkView({ mode, data, reload, googleToken, setGoogleToken }: Sh
           ))}
         </div>
         {tab === "team" && (
-          <select value={person} onChange={(e) => setPerson(e.target.value)} className="h-9 rounded-lg border border-line bg-surface px-3 text-sm" aria-label="Filter by owner">
+          <select value={person} onChange={(e) => setPerson(e.target.value)} className="h-10 rounded-full border border-line bg-surface px-4 text-sm" aria-label="Filter by owner">
             <option value="">Everyone</option>
             {data.people.map((p) => <option key={p.id} value={p.name}>{p.name}</option>)}
             <option value="__none">Unassigned</option>
@@ -98,7 +98,7 @@ export function WorkView({ mode, data, reload, googleToken, setGoogleToken }: Sh
           {groups.map((g) => (
             <section key={g.key}>
               <div className="mb-2 flex items-center gap-2 px-1">
-                <h2 className={cn("text-[13px] font-semibold uppercase tracking-[0.06em]", g.key === "overdue" ? "text-bad" : "text-soft")}>{g.label}</h2>
+                <h2 className={cn("font-mono text-xs tracking-[0.08em] uppercase", g.key === "overdue" ? "text-bad" : "text-soft")}>{g.label}</h2>
                 <span className="text-xs tabular-nums text-faint">{g.items.length}</span>
               </div>
               <Card className="divide-y divide-line">

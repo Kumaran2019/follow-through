@@ -35,6 +35,16 @@ export function CaptureView({ mode, data, reload, googleToken, setGoogleToken, g
   const [result, setResult] = useState<{ tasks: number; decisions: number; superseded: number; reminders: number; calendarError?: string } | null>(null);
   const [showCleaned, setShowCleaned] = useState(false);
   const textRef = useRef<HTMLTextAreaElement>(null);
+  const [typing, setTyping] = useState(false);
+  const typingTimer = useRef<any>(null);
+  const [sortKey, setSortKey] = useState(0);
+
+  function onText(v: string) {
+    setText(v);
+    setTyping(true);
+    clearTimeout(typingTimer.current);
+    typingTimer.current = setTimeout(() => setTyping(false), 1200);
+  }
 
   const people = data.people.map((p) => p.name);
 
@@ -168,75 +178,76 @@ export function CaptureView({ mode, data, reload, googleToken, setGoogleToken, g
     setHeldOn(localToday());
   }
 
+  const words = text.trim() ? text.trim().split(/\s+/).length : 0;
+  const dateLabel = prettyDate(heldOn).toUpperCase();
+
   // ---------- INPUT ----------
   if (phase === "input") {
     return (
       <div className="animate-rise">
-        <PageHeader
-          title="New meeting"
-          sub="Speak a quick recap or paste the transcript. The agent does the rest, and you approve before anything is posted."
-          actions={<Button variant="ghost" icon={<Wand2 className="h-4 w-4" />} onClick={loadSample}>Use sample recap</Button>}
-        />
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center gap-2.5">
+            <span className={cn("h-2.5 w-2.5 rounded-full", typing ? "animate-pulseDot bg-warn" : "bg-[#3A3A3E]")} />
+            <span className="font-mono text-xs tracking-[0.1em] text-soft">{typing ? "CAPTURING" : "READY"} · {words} WORDS</span>
+          </div>
+          <Button variant="ghost" size="sm" icon={<Wand2 className="h-4 w-4" />} onClick={loadSample}>Use sample recap</Button>
+        </div>
 
         {error && (
-          <div className="mb-4 flex items-start gap-2 rounded-lg border border-bad/30 bg-bad-wash px-3.5 py-2.5 text-sm text-bad">
+          <div className="mt-5 flex items-start gap-2 rounded-2xl border border-bad/30 bg-bad-wash px-4 py-3 text-sm text-bad">
             <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" /> {error}
           </div>
         )}
 
-        <Card className="p-5 sm:p-6">
-          <div className="grid gap-4 sm:grid-cols-[1fr_180px]">
-            <Field label="Meeting title">
-              <input className={inputCls} placeholder="e.g. Northwind weekly sync" value={title} onChange={(e) => setTitle(e.target.value)} />
-            </Field>
-            <Field label="Held on">
-              <input type="date" className={inputCls} value={heldOn} onChange={(e) => setHeldOn(e.target.value)} />
-            </Field>
-          </div>
+        <div className="mt-6 flex flex-wrap items-center gap-2">
+          <input
+            aria-label="Meeting title"
+            className="h-10 min-w-[220px] flex-1 rounded-full border border-line bg-transparent px-4 text-sm text-ink placeholder:text-faint focus:border-brand/60 sm:max-w-sm"
+            placeholder="Meeting title"
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+          />
+          <input type="date" aria-label="Held on" className="h-10 rounded-full border border-line bg-transparent px-4 text-sm text-ink" value={heldOn} onChange={(e) => setHeldOn(e.target.value)} />
+          {people.map((p) => {
+            const on = attendees.includes(p);
+            return (
+              <button
+                key={p}
+                onClick={() => setAttendees(on ? attendees.filter((a) => a !== p) : [...attendees, p])}
+                aria-pressed={on}
+                className={cn("inline-flex h-10 items-center gap-2 rounded-full border pl-1.5 pr-3.5 text-[13px] transition-colors", on ? "border-brand/50 bg-brand-wash text-ink" : "border-line text-faint hover:text-ink")}
+              >
+                <Avatar name={p} size={26} /> {p.split(" ")[0]}
+              </button>
+            );
+          })}
+        </div>
 
-          {people.length > 0 && (
-            <div className="mt-4">
-              <span className="mb-1.5 block text-[13px] font-medium text-soft">Attendees</span>
-              <div className="flex flex-wrap gap-1.5">
-                {people.map((p) => {
-                  const on = attendees.includes(p);
-                  return (
-                    <button
-                      key={p}
-                      onClick={() => setAttendees(on ? attendees.filter((a) => a !== p) : [...attendees, p])}
-                      className={cn("inline-flex items-center gap-1.5 rounded-full border py-1 pl-1 pr-2.5 text-[13px] transition-colors", on ? "border-brand/40 bg-brand-wash text-ink" : "border-line text-soft hover:bg-raised")}
-                    >
-                      <Avatar name={p} size={20} /> {p.split(" ")[0]}
-                      {on && <Check className="h-3 w-3 text-brand" />}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-          )}
-
-          <div className="mt-5">
-            <div className="mb-1.5 flex items-center justify-between">
-              <span className="text-[13px] font-medium text-soft">What happened?</span>
-              <span className="inline-flex items-center gap-1.5 text-xs text-faint"><Mic className="h-3.5 w-3.5" /> Click the box, then dictate with Wispr Flow</span>
-            </div>
-            <textarea
-              ref={textRef}
-              value={text}
-              onChange={(e) => setText(e.target.value)}
-              placeholder={"Speak naturally. For example:\n“So, um, Priya will finish the API spec by Tuesday, no wait, Thursday. And the client wants to launch earlier…”\n\nOr paste a transcript with speaker names, like “Meera: …”"}
-              className="min-h-[260px] w-full resize-y rounded-xl border border-line bg-raised p-4 text-[15px] leading-relaxed text-ink placeholder:text-faint focus:border-brand/60 focus:bg-surface"
+        <div aria-hidden="true" className="mt-12 flex h-[96px] items-center gap-[6px]">
+          {[40, 90, 60, 96, 70, 88, 50, 96, 80, 56, 92, 64, 96, 44, 84, 52, 36, 24].map((h, i) => (
+            <span
+              key={i}
+              className={cn("w-[6px] rounded-full", typing ? "ft-bar" : "ft-bar-idle", i > 13 ? "bg-[#3A4A1A]" : "bg-brand")}
+              style={{ height: h, animationDelay: `${(i * 0.12) % 1.1}s`, transition: "transform 300ms ease" }}
             />
-            <div className="mt-1 text-right text-xs tabular-nums text-faint">{text.trim() ? text.trim().split(/\s+/).length : 0} words</div>
-          </div>
+          ))}
+        </div>
 
-          <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-line pt-4">
-            <p className="text-xs text-faint">Nothing is saved until you approve the draft.</p>
-            <Button variant="primary" size="lg" icon={<Sparkles className="h-4 w-4" />} disabled={text.trim().length < 20} onClick={run}>
-              Run the agent
-            </Button>
+        <textarea
+          ref={textRef}
+          value={text}
+          onChange={(e) => onText(e.target.value)}
+          aria-label="What happened in the meeting"
+          placeholder={"Click here and speak with Wispr Flow.\nSay it like you would to a colleague: “Priya will check the effort by Tuesday, no wait, Thursday…”"}
+          className="scroll-thin mt-8 min-h-[300px] w-full resize-none bg-transparent text-[24px] font-medium leading-[1.35] tracking-[-0.02em] text-ink placeholder:text-[#4A4A4E] focus:outline-none sm:text-[32px]"
+        />
+
+        <div className="sticky bottom-5 mt-8">
+          <div className="flex flex-wrap items-center justify-between gap-3 rounded-full border border-[#2A2A2D] bg-surface py-2.5 pl-6 pr-2.5 shadow-pop">
+            <p className="flex items-center gap-2 text-sm text-faint"><Mic className="h-4 w-4" /> Speak naturally. Filler and corrections get cleaned up. Nothing posts until you approve.</p>
+            <Button variant="primary" size="lg" icon={<Sparkles className="h-4 w-4" />} disabled={text.trim().length < 20} onClick={run}>Run the agent</Button>
           </div>
-        </Card>
+        </div>
       </div>
     );
   }
@@ -244,18 +255,17 @@ export function CaptureView({ mode, data, reload, googleToken, setGoogleToken, g
   // ---------- DONE ----------
   if (phase === "done" && result) {
     return (
-      <div className="mx-auto max-w-xl animate-rise pt-6 text-center">
-        <div className="mx-auto mb-5 flex h-12 w-12 items-center justify-center rounded-full bg-good-wash text-good"><CheckCircle2 className="h-6 w-6" /></div>
-        <h1 className="font-display text-2xl font-semibold tracking-[-0.02em]">Posted to the team</h1>
-        <p className="mt-2 text-soft">Everyone in {data.workspaceName} can now see these commitments.</p>
-        <div className="mt-6 grid grid-cols-2 gap-3 text-left sm:grid-cols-4">
+      <div className="mx-auto max-w-3xl animate-rise pt-10">
+        <span className="inline-flex items-center gap-2 rounded-full bg-brand-wash px-3 py-1.5 text-[13px] text-brand"><CheckCircle2 className="h-4 w-4" /> Posted to {data.workspaceName}</span>
+        <h1 className="mt-6 text-[44px] font-semibold leading-[1.02] tracking-[-0.035em] sm:text-[56px]">Everyone knows<br /><span className="text-faint">what they owe, and when.</span></h1>
+        <div className="mt-10 grid grid-cols-2 gap-3 sm:grid-cols-4">
           <Stat n={result.tasks} label="tasks created" />
           <Stat n={result.decisions} label="decisions logged" />
           <Stat n={result.superseded} label="decisions replaced" />
           <Stat n={result.reminders} label="calendar reminders" />
         </div>
         {result.calendarError && <p className="mt-4 text-sm text-warn">{result.calendarError}</p>}
-        <div className="mt-8 flex justify-center gap-2">
+        <div className="mt-10 flex flex-wrap gap-2">
           <Button onClick={reset} icon={<Undo2 className="h-4 w-4" />}>Capture another</Button>
           <Button variant="primary" onClick={() => go("work")} icon={<ArrowRight className="h-4 w-4" />}>See commitments</Button>
         </div>
@@ -265,258 +275,249 @@ export function CaptureView({ mode, data, reload, googleToken, setGoogleToken, g
 
   // ---------- RUNNING / REVIEW / POSTING ----------
   const running = phase === "running";
+  const summary = draft?.summary || "";
+  const firstStop = summary.indexOf(". ");
+  const headA = running ? "Agent at work." : firstStop > 0 ? summary.slice(0, firstStop + 1) : summary;
+  const headB = running ? "Sorting what was said into decisions, owners and dates." : firstStop > 0 ? summary.slice(firstStop + 2) : "";
+  let delay = 0;
+  const nextDelay = () => `${(delay++ * 0.13 + 0.15).toFixed(2)}s`;
+
   return (
     <div className="animate-rise">
-      <PageHeader
-        title={running ? "Agent at work" : "Review the draft"}
-        sub={running ? "Watch each step as it happens." : "Edit anything, untick what you don’t want, then post."}
-        actions={!running && <Button variant="ghost" icon={<RefreshCw className="h-4 w-4" />} onClick={() => setPhase("input")}>Edit input</Button>}
-      />
-
-      <div className="grid gap-6 lg:grid-cols-[300px_1fr]">
-        {/* Agent trace */}
-        <div className="lg:sticky lg:top-6 lg:self-start">
-          <Card className="p-4">
-            <div className="mb-3 flex items-center justify-between">
-              <span className="text-[13px] font-semibold">Agent trace</span>
-              {running ? <Badge tone="brand"><span className="h-1.5 w-1.5 animate-pulseDot rounded-full bg-brand" /> Live</Badge> : <Badge tone="good">{steps.length} steps</Badge>}
-            </div>
-            <ol className="relative space-y-3">
-              {steps.map((s, i) => (
-                <li key={s.id} className="relative flex gap-3 animate-rise">
-                  {i < steps.length - 1 && <span className="absolute left-[9px] top-5 h-[calc(100%+4px)] w-px bg-line" />}
-                  <span className={cn("relative z-10 mt-0.5 flex h-[19px] w-[19px] shrink-0 items-center justify-center rounded-full", s.status === "done" ? "bg-brand text-brand-ink" : "bg-surface text-brand ring-1 ring-brand/40")}>
-                    {s.status === "done" ? <Check className="h-3 w-3" strokeWidth={3} /> : <Loader2 className="h-3 w-3 animate-spin" />}
-                  </span>
-                  <div className="min-w-0">
-                    <div className="text-[13px] leading-5">{s.label}</div>
-                    {s.detail && <div className="text-xs text-faint">{s.detail}</div>}
-                  </div>
-                </li>
-              ))}
-              {running && steps.length === 0 && <li className="flex items-center gap-2 text-sm text-soft"><Loader2 className="h-4 w-4 animate-spin" /> Starting…</li>}
-            </ol>
-          </Card>
-
-          {draft && (
-            <Card className="mt-4 p-4">
-              <button className="flex w-full items-center justify-between text-[13px] font-semibold" onClick={() => setShowCleaned(!showCleaned)}>
-                Cleaned-up transcript <ChevronDown className={cn("h-4 w-4 text-faint transition-transform", showCleaned && "rotate-180")} />
-              </button>
-              <p className="mt-1 text-xs text-faint">Filler removed. Self-corrections resolved.</p>
-              {showCleaned && (
-                <div className="scroll-thin mt-3 max-h-80 space-y-2.5 overflow-y-auto pr-1">
-                  {draft.cleaned.map((l, i) => (
-                    <div key={i} className="text-[13px] leading-relaxed">
-                      <span className="font-medium">{l.speaker}:</span> <span className="text-soft">{l.text}</span>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </Card>
-          )}
+      <section className="flex flex-wrap items-end justify-between gap-6">
+        <div className="min-w-0 flex-[1_1_640px]">
+          <p className="font-mono text-xs tracking-[0.08em] text-faint">{(title || "Untitled meeting").toUpperCase()} · {dateLabel}</p>
+          <h1 className="mt-3.5 text-[34px] font-semibold leading-[1.04] tracking-[-0.035em] sm:text-[48px]">
+            {headA}
+            {headB && <><br /><span className="text-faint">{headB}</span></>}
+          </h1>
         </div>
-
-        {/* Draft */}
-        <div className="min-w-0 space-y-5">
-          {running && <SkeletonDraft />}
-
-          {draft && !running && (
+        <div className="flex flex-wrap items-center gap-2">
+          {running ? (
+            <span className="inline-flex items-center gap-2 rounded-full bg-brand-wash px-3 py-2 text-[13px] text-brand"><span className="h-[7px] w-[7px] animate-pulseDot rounded-full bg-brand" /> Live</span>
+          ) : (
             <>
-              <Card className="p-5">
-                <div className="flex flex-wrap items-center gap-2">
-                  <span className="text-[13px] font-semibold">Summary</span>
-                  {conflictCount > 0 && <Badge tone="warn"><AlertTriangle className="h-3 w-3" /> {conflictCount} conflict{conflictCount > 1 ? "s" : ""}</Badge>}
-                  {draft.gaps.length > 0 && <Badge tone="ask"><HelpCircle className="h-3 w-3" /> {draft.gaps.length} open question{draft.gaps.length > 1 ? "s" : ""}</Badge>}
-                </div>
-                <p className="mt-2 leading-relaxed text-soft">{draft.summary}</p>
-              </Card>
-
-              {/* Decisions */}
-              <Section title="Decisions" count={decisions.length}>
-                {decisions.length === 0 && <p className="px-1 text-sm text-faint">No decisions found in this meeting.</p>}
-                {decisions.map((d, i) => (
-                  <Card key={d.key} className={cn("overflow-hidden", !d.keep && "opacity-55")}>
-                    <div className="flex gap-3 p-4">
-                      <Toggle on={d.keep} onChange={(v) => setDecisions(decisions.map((x, j) => (j === i ? { ...x, keep: v } : x)))} />
-                      <div className="min-w-0 flex-1">
-                        <div className="flex flex-wrap items-center gap-2">
-                          <Badge>{d.topic}</Badge>
-                          {d.made_by && <span className="text-xs text-faint">by {d.made_by}</span>}
-                        </div>
-                        <p className="mt-1.5 font-medium leading-snug">{d.text}</p>
-                      </div>
-                    </div>
-                    {d.conflicts.map((c) => (
-                      <div key={c.decision_id} className="border-t border-warn/25 bg-warn-wash/70 px-4 py-3.5">
-                        <div className="flex items-start gap-2.5">
-                          <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-warn" />
-                          <div className="min-w-0 flex-1">
-                            <p className="text-sm font-medium text-ink">{c.reason}</p>
-                            <p className="mt-1 text-[13px] text-soft">
-                              Earlier: “{c.past_text}” <span className="text-faint">· {c.past_meeting} · {prettyDate(c.past_date)}</span>
-                            </p>
-                            <div className="mt-2.5 inline-flex rounded-lg border border-line bg-surface p-0.5 text-[13px]">
-                              {[
-                                { v: false, label: "Keep both & discuss" },
-                                { v: true, label: "Replace earlier decision" },
-                              ].map((opt) => (
-                                <button
-                                  key={opt.label}
-                                  onClick={() => setDecisions(decisions.map((x, j) => (j === i ? { ...x, replace: { ...x.replace, [c.decision_id]: opt.v } } : x)))}
-                                  className={cn("rounded-md px-2.5 py-1 transition-colors", d.replace[c.decision_id] === opt.v ? "bg-ink text-canvas" : "text-soft hover:text-ink")}
-                                >
-                                  {opt.label}
-                                </button>
-                              ))}
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </Card>
-                ))}
-              </Section>
-
-              {/* Tasks */}
-              <Section title="Action items" count={tasks.length}>
-                {tasks.length === 0 && <p className="px-1 text-sm text-faint">No action items found.</p>}
-                {tasks.map((t, i) => {
-                  const set = (patch: Partial<EditTask>) => setTasks(tasks.map((x, j) => (j === i ? { ...x, ...patch } : x)));
-                  return (
-                    <Card key={t.key} className={cn("p-4", !t.keep && "opacity-55")}>
-                      <div className="flex gap-3">
-                        <Toggle on={t.keep} onChange={(v) => set({ keep: v })} />
-                        <div className="min-w-0 flex-1">
-                          <input
-                            value={t.title}
-                            onChange={(e) => set({ title: e.target.value })}
-                            className="w-full rounded-md bg-transparent px-1 py-0.5 -mx-1 font-medium hover:bg-raised focus:bg-raised"
-                          />
-                          {t.source_quote && (
-                            <p className="mt-1 flex items-start gap-1.5 text-[13px] text-faint"><Quote className="mt-0.5 h-3 w-3 shrink-0" /> {t.source_quote}</p>
-                          )}
-                          <div className="mt-3 flex flex-wrap items-center gap-2">
-                            <div className={cn("flex items-center gap-1.5 rounded-lg border pl-1.5", !t.owner ? "border-ask/50 bg-ask-wash" : "border-line")}>
-                              <Avatar name={t.owner} size={20} />
-                              <select
-                                value={t.owner || ""}
-                                onChange={(e) => set({ owner: e.target.value || null })}
-                                className="h-8 rounded-lg bg-transparent pr-2 text-[13px]"
-                                aria-label="Owner"
-                              >
-                                <option value="">Needs an owner</option>
-                                {people.map((p) => <option key={p} value={p}>{p}</option>)}
-                                {t.owner && !people.includes(t.owner) && <option value={t.owner}>{t.owner}</option>}
-                              </select>
-                            </div>
-                            <div className={cn("flex items-center rounded-lg border", !t.due_date ? "border-ask/50 bg-ask-wash" : "border-line")}>
-                              <input
-                                type="date"
-                                value={t.due_date || ""}
-                                onChange={(e) => set({ due_date: e.target.value || null })}
-                                className="h-8 rounded-lg bg-transparent px-2 text-[13px]"
-                                aria-label="Due date"
-                              />
-                            </div>
-                            {t.due_phrase && t.due_date && <span className="text-xs text-faint">from “{t.due_phrase}”</span>}
-                            {t.duplicate_of && <Badge tone="neutral"><Copy className="h-3 w-3" /> Looks like an existing task</Badge>}
-                          </div>
-                        </div>
-                      </div>
-                    </Card>
-                  );
-                })}
-              </Section>
-
-              {/* Gaps */}
-              {draft.gaps.length > 0 && (
-                <Section title="Questions for the team" count={draft.gaps.length}>
-                  <Card className="divide-y divide-line">
-                    {draft.gaps.map((g, i) => (
-                      <div key={i} className="flex gap-3 p-4">
-                        <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-ask-wash text-ask"><HelpCircle className="h-3.5 w-3.5" /></span>
-                        <div>
-                          <p className="text-sm font-medium">{g.question}</p>
-                          <p className="text-[13px] text-faint">{g.item}</p>
-                        </div>
-                      </div>
-                    ))}
-                  </Card>
-                </Section>
-              )}
-
-              {/* Footer */}
-              <div className="sticky bottom-4 z-10">
-                <Card className="flex flex-wrap items-center justify-between gap-3 p-3 pl-4 shadow-pop">
-                  <div className="flex items-center gap-2 text-sm">
-                    {mode === "org" ? (
-                      calendarReady ? (
-                        <label className="flex cursor-pointer items-center gap-2">
-                          <input type="checkbox" checked={syncCal} onChange={(e) => setSyncCal(e.target.checked)} className="h-4 w-4 accent-[rgb(var(--brand))]" />
-                          <CalendarCheck className="h-4 w-4 text-brand" /> Add deadline reminders to my Google Calendar
-                        </label>
-                      ) : (
-                        <button onClick={() => signInWithGoogle()} className="flex items-center gap-2 text-warn hover:underline"><CalendarPlus className="h-4 w-4" /> Reconnect Google Calendar for reminders</button>
-                      )
-                    ) : (
-                      <span className="flex items-center gap-2 text-soft"><CalendarPlus className="h-4 w-4" /> Demo: use “Add to calendar” on each task after posting</span>
-                    )}
-                  </div>
-                  <Button variant="primary" loading={phase === "posting"} disabled={!keptTasks.length && !keptDecisions.length} onClick={() => setConfirmOpen(true)}>
-                    Review & post
-                  </Button>
-                </Card>
-                {error && <p className="mt-2 text-sm text-bad">{error}</p>}
-              </div>
+              <span className="inline-flex items-center gap-2 rounded-full bg-brand-wash px-3 py-2 text-[13px] text-brand"><span className="h-[7px] w-[7px] rounded-full bg-brand" /> Agent done · {steps.length} steps</span>
+              <Button size="sm" onClick={() => setSortKey((k) => k + 1)}>Replay sort</Button>
+              <Button size="sm" variant="ghost" icon={<RefreshCw className="h-3.5 w-3.5" />} onClick={() => setPhase("input")}>Edit input</Button>
             </>
           )}
         </div>
-      </div>
+      </section>
+
+      <section aria-label="Agent trace" className="mt-7 flex flex-wrap gap-2">
+        {steps.map((s) => (
+          <span key={s.id} className={cn("inline-flex animate-rise items-center gap-1.5 rounded-full border px-3 py-1.5 font-mono text-xs", /clash|conflict/i.test(s.detail || "") ? "border-warn/40 text-[#FFB08F]" : "border-line text-soft")}>
+            {s.status === "done" ? <Check className="h-3 w-3 text-brand" strokeWidth={3} /> : <Loader2 className="h-3 w-3 animate-spin text-brand" />}
+            {s.label}{s.detail ? <span className="text-faint">· {s.detail}</span> : null}
+          </span>
+        ))}
+        {running && steps.length === 0 && <span className="inline-flex items-center gap-2 font-mono text-xs text-faint"><Loader2 className="h-3 w-3 animate-spin" /> starting…</span>}
+      </section>
+
+      {running && (
+        <div className="mt-10 grid grid-cols-1 gap-5 md:grid-cols-3">
+          {[0, 1, 2].map((c) => (
+            <div key={c} className="space-y-3">
+              <div className="h-3 w-24 animate-pulse rounded-full bg-raised" />
+              {[0, 1].map((r) => <div key={r} className="h-24 animate-pulse rounded-[18px] border border-dashed border-[#2A2A2D]" style={{ animationDelay: `${(c + r) * 0.15}s` }} />)}
+            </div>
+          ))}
+        </div>
+      )}
+
+      {draft && !running && (
+        <div key={sortKey}>
+          <section aria-label="Sorted results" className="mt-10 grid grid-cols-1 items-start gap-5 md:grid-cols-2">
+            {/* Decisions */}
+            <div className="min-w-0 space-y-3">
+              <LaneHead title="Decisions" n={decisions.length} />
+              {decisions.length === 0 && <p className="px-1 text-sm text-faint">No decisions in this meeting.</p>}
+              {decisions.map((d, i) => (
+                <article key={d.key} className={cn("ft-card relative rounded-[18px] border border-line bg-surface p-5 transition-opacity", !d.keep && "opacity-40")} style={{ animationDelay: nextDelay() }}>
+                  <KeepToggle on={d.keep} onChange={(v) => setDecisions(decisions.map((x, j) => (j === i ? { ...x, keep: v } : x)))} />
+                  <p className="pr-8 text-xs text-faint">{d.topic}{d.made_by ? ` · ${d.made_by.split(" ")[0]}` : ""}</p>
+                  <p className="mt-2 pr-8 text-[19px] font-medium leading-snug tracking-[-0.01em]">{d.text}</p>
+                  {d.conflicts.length > 0 && <p className="mt-2 font-mono text-[11px] text-[#FFB08F]">CLASHES WITH {d.conflicts.length} EARLIER DECISION{d.conflicts.length > 1 ? "S" : ""} ↓</p>}
+                </article>
+              ))}
+            </div>
+
+            {/* Tasks */}
+            <div className="min-w-0 space-y-3">
+              <LaneHead title="Tasks" n={tasks.length} />
+              {tasks.length === 0 && <p className="px-1 text-sm text-faint">No action items found.</p>}
+              {tasks.map((t, i) => {
+                const set = (patch: Partial<EditTask>) => setTasks(tasks.map((x, j) => (j === i ? { ...x, ...patch } : x)));
+                return (
+                  <article key={t.key} className={cn("ft-card relative rounded-[18px] border bg-surface p-4", !t.owner || !t.due_date ? "border-dashed border-[#3A3A3E]" : "border-line", !t.keep && "opacity-40")} style={{ animationDelay: nextDelay() }}>
+                    <KeepToggle on={t.keep} onChange={(v) => set({ keep: v })} />
+                    <div className="flex gap-3 pr-8">
+                      <Avatar name={t.owner} size={32} />
+                      <div className="min-w-0 flex-1">
+                        <input value={t.title} onChange={(e) => set({ title: e.target.value })} aria-label="Task title" className="-mx-1 w-full rounded-md bg-transparent px-1 py-0.5 text-[15px] leading-snug hover:bg-raised focus:bg-raised" />
+                        {t.source_quote && <p className="mt-1 flex items-start gap-1.5 text-[13px] text-faint"><Quote className="mt-0.5 h-3 w-3 shrink-0" /> {t.source_quote}</p>}
+                        <div className="mt-3 flex flex-wrap items-center gap-2">
+                          <select value={t.owner || ""} onChange={(e) => set({ owner: e.target.value || null })} aria-label="Owner" className={cn("h-8 rounded-full border bg-transparent px-3 text-[13px]", t.owner ? "border-line text-ink" : "border-[#4A4A4E] text-faint")}>
+                            <option value="">Needs an owner</option>
+                            {people.map((p) => <option key={p} value={p}>{p}</option>)}
+                            {t.owner && !people.includes(t.owner) && <option value={t.owner}>{t.owner}</option>}
+                          </select>
+                          <input type="date" value={t.due_date || ""} onChange={(e) => set({ due_date: e.target.value || null })} aria-label="Due date" className={cn("h-8 rounded-full border bg-transparent px-3 font-mono text-[12px]", t.due_date ? "border-brand/30 text-brand" : "border-[#4A4A4E] text-faint")} />
+                          {t.due_phrase && t.due_date && <span className="font-mono text-[11px] text-faint">FROM “{t.due_phrase.toUpperCase()}”</span>}
+                          {t.duplicate_of && <Badge><Copy className="h-3 w-3" /> Looks like an existing task</Badge>}
+                        </div>
+                      </div>
+                    </div>
+                  </article>
+                );
+              })}
+            </div>
+
+            {/* Conflicts */}
+            {conflictCount > 0 && (
+              <div className="min-w-0 space-y-3 md:col-span-2">
+                <LaneHead title="Conflicts with earlier decisions" n={conflictCount} tone="warn" />
+                <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
+                  {decisions.flatMap((d, i) =>
+                    d.conflicts.map((c) => (
+                      <article key={`${d.key}-${c.decision_id}`} className="ft-card rounded-[18px] border border-[#5A2A17] bg-warn-wash p-5" style={{ animationDelay: nextDelay() }}>
+                        <div className="grid grid-cols-[minmax(0,1fr)_40px_minmax(0,1fr)] items-center">
+                          <div className="rounded-xl border border-warn bg-[#241712] px-3.5 py-3">
+                            <p className="font-mono text-[10.5px] tracking-[0.06em] text-[#FFB08F]">NEW · TODAY</p>
+                            <p className="mt-1.5 text-[15px] font-medium leading-snug">{d.text}</p>
+                          </div>
+                          <div aria-hidden="true" className="relative h-[2px]"><div className="ft-thread absolute inset-0 bg-warn" style={{ animationDelay: `${parseFloat(nextDelay()) + 0.4}s` }} /></div>
+                          <div className="rounded-xl border border-dashed border-[#4A4A4E] bg-[#141414] px-3.5 py-3">
+                            <p className="font-mono text-[10.5px] tracking-[0.06em] text-faint">EARLIER · {(c.past_meeting || "").toUpperCase().slice(0, 28)}{c.past_date ? `, ${prettyDate(c.past_date).toUpperCase()}` : ""}</p>
+                            <p className={cn("mt-1.5 text-[15px] leading-snug text-soft", d.replace[c.decision_id] && "line-through decoration-warn")}>{c.past_text}</p>
+                          </div>
+                        </div>
+                        <p className="mt-4 text-sm leading-relaxed text-[#E6CFC6]">{c.reason}</p>
+                        <div role="group" aria-label="Resolve conflict" className="mt-4 inline-flex rounded-full border border-[#3A2318] bg-canvas p-1">
+                          {[
+                            { v: false, label: "Keep both, discuss" },
+                            { v: true, label: "Replace earlier" },
+                          ].map((opt) => {
+                            const on = d.replace[c.decision_id] === opt.v;
+                            return (
+                              <button
+                                key={opt.label}
+                                aria-pressed={on}
+                                onClick={() => setDecisions(decisions.map((x, j) => (j === i ? { ...x, replace: { ...x.replace, [c.decision_id]: opt.v } } : x)))}
+                                className={cn("h-8 rounded-full px-3.5 text-[13px] transition-colors", on ? (opt.v ? "bg-warn font-medium text-canvas" : "bg-[#3A2318] font-medium text-[#FFE3D6]") : "text-[#E6CFC6] hover:text-white")}
+                              >
+                                {opt.label}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </article>
+                    ))
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Questions */}
+            {draft.gaps.length > 0 && (
+              <div className="min-w-0 space-y-3 md:col-span-2">
+                <LaneHead title="Questions for the team" n={draft.gaps.length} />
+                <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
+                  {draft.gaps.map((g, i) => (
+                    <div key={i} className="ft-card flex items-center gap-3 rounded-[18px] border border-dashed border-[#3A3A3E] px-4 py-3.5" style={{ animationDelay: nextDelay() }}>
+                      <span className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-dashed border-[#6A6A6E] text-faint"><HelpCircle className="h-4 w-4" /></span>
+                      <div className="min-w-0">
+                        <p className="text-[15px]">{g.question}</p>
+                        <p className="text-[13px] text-faint">{g.item}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </section>
+
+          {/* Cleaned transcript */}
+          <section className="mt-8">
+            <button className="inline-flex items-center gap-2 font-mono text-xs tracking-[0.06em] text-faint hover:text-ink" onClick={() => setShowCleaned(!showCleaned)}>
+              CLEANED TRANSCRIPT <ChevronDown className={cn("h-3.5 w-3.5 transition-transform", showCleaned && "rotate-180")} />
+            </button>
+            {showCleaned && (
+              <div className="mt-3 space-y-2 rounded-[18px] border border-line bg-surface p-5">
+                {draft.cleaned.map((l, i) => (
+                  <p key={i} className="text-sm leading-relaxed"><span className="font-medium">{l.speaker}:</span> <span className="text-soft">{l.text}</span></p>
+                ))}
+              </div>
+            )}
+          </section>
+
+          {/* Approve bar */}
+          <div className="sticky bottom-5 z-10 mt-10">
+            <div className="flex flex-wrap items-center justify-between gap-3 rounded-[28px] border border-[#2A2A2D] bg-surface py-2.5 pl-6 pr-2.5 shadow-pop sm:rounded-full">
+              <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-soft">
+                <span>{keptTasks.length} tasks · {keptDecisions.length} decisions{replaceCount ? ` · ${replaceCount} replaced` : ""}</span>
+                {mode === "org" ? (
+                  calendarReady ? (
+                    <label className="flex cursor-pointer items-center gap-2 text-brand">
+                      <input type="checkbox" checked={syncCal} onChange={(e) => setSyncCal(e.target.checked)} className="h-4 w-4 accent-[rgb(var(--brand))]" />
+                      {reminderCount} reminders to Google Calendar
+                    </label>
+                  ) : (
+                    <button onClick={() => signInWithGoogle()} className="flex items-center gap-1.5 text-warn hover:underline"><CalendarPlus className="h-4 w-4" /> Reconnect calendar</button>
+                  )
+                ) : (
+                  <span className="flex items-center gap-1.5 text-faint"><CalendarPlus className="h-4 w-4" /> Demo: add to calendar from Commitments</span>
+                )}
+              </div>
+              <Button variant="primary" size="lg" loading={phase === "posting"} disabled={!keptTasks.length && !keptDecisions.length} onClick={() => setConfirmOpen(true)}>Approve and post</Button>
+            </div>
+            {error && <p className="mt-2 px-4 text-sm text-bad">{error}</p>}
+          </div>
+        </div>
+      )}
 
       {confirmOpen && (
-        <div className="fixed inset-0 z-50 flex items-end justify-center p-4 sm:items-center" role="dialog" aria-modal="true">
-          <div className="absolute inset-0 bg-black/40" onClick={() => setConfirmOpen(false)} />
-          <Card className="relative w-full max-w-md animate-rise p-6 shadow-pop">
-            <h2 className="font-display text-lg font-semibold tracking-[-0.01em]">Post to {data.workspaceName}?</h2>
-            <ul className="mt-4 space-y-2 text-sm">
-              <ConfirmRow n={keptTasks.length} text="tasks will be created and shared with the team" />
-              <ConfirmRow n={keptDecisions.length} text="decisions will be added to the log" />
-              {replaceCount > 0 && <ConfirmRow n={replaceCount} text="earlier decisions will be marked as replaced" tone="warn" />}
-              {reminderCount > 0 && <ConfirmRow n={reminderCount} text="reminders will be added to your Google Calendar" />}
-              {unowned > 0 && <ConfirmRow n={unowned} text="tasks still have no owner" tone="ask" />}
+        <div className="fixed inset-0 z-50 flex items-end justify-center p-4 sm:items-center" role="dialog" aria-modal="true" aria-label="Confirm posting">
+          <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={() => setConfirmOpen(false)} />
+          <div className="relative w-full max-w-md animate-rise rounded-[24px] border border-[#2A2A2D] bg-surface p-7 shadow-pop">
+            <p className="font-mono text-xs tracking-[0.08em] text-faint">CONFIRM</p>
+            <h2 className="mt-2 text-2xl font-semibold tracking-[-0.02em]">Post to {data.workspaceName}?</h2>
+            <ul className="mt-5 space-y-2.5 text-sm">
+              <ConfirmRow n={keptTasks.length} text="tasks created and shared with the team" />
+              <ConfirmRow n={keptDecisions.length} text="decisions added to the log" />
+              {replaceCount > 0 && <ConfirmRow n={replaceCount} text="earlier decisions marked as replaced" tone="warn" />}
+              {reminderCount > 0 && <ConfirmRow n={reminderCount} text="reminders added to your Google Calendar" />}
+              {unowned > 0 && <ConfirmRow n={unowned} text="tasks still need an owner" tone="ask" />}
             </ul>
-            <div className="mt-6 flex justify-end gap-2">
+            <div className="mt-7 flex justify-end gap-2">
               <Button onClick={() => setConfirmOpen(false)}>Go back</Button>
-              <Button variant="primary" onClick={post} icon={<Check className="h-4 w-4" />}>Approve & post</Button>
+              <Button variant="primary" onClick={post} icon={<Check className="h-4 w-4" />}>Approve and post</Button>
             </div>
-          </Card>
+          </div>
         </div>
       )}
     </div>
   );
 }
 
-function Section({ title, count, children }: { title: string; count: number; children: React.ReactNode }) {
+function LaneHead({ title, n, tone }: { title: string; n: number; tone?: "warn" }) {
   return (
-    <section>
-      <div className="mb-2.5 flex items-center gap-2 px-1">
-        <h2 className="text-[13px] font-semibold uppercase tracking-[0.06em] text-soft">{title}</h2>
-        <span className="text-xs tabular-nums text-faint">{count}</span>
-      </div>
-      <div className="space-y-2.5">{children}</div>
-    </section>
+    <div className="flex items-baseline justify-between px-1">
+      <h2 className={cn("text-sm font-medium", tone === "warn" ? "text-[#FF8A5C]" : "text-ink")}>{title}</h2>
+      <span className={cn("font-mono text-xs", tone === "warn" ? "text-[#FF8A5C]" : "text-faint")}>{String(n).padStart(2, "0")}</span>
+    </div>
   );
 }
 
-function Toggle({ on, onChange }: { on: boolean; onChange: (v: boolean) => void }) {
+function KeepToggle({ on, onChange }: { on: boolean; onChange: (v: boolean) => void }) {
   return (
     <button
       role="checkbox"
       aria-checked={on}
-      aria-label={on ? "Included" : "Excluded"}
+      aria-label={on ? "Included. Click to leave out" : "Left out. Click to include"}
       onClick={() => onChange(!on)}
-      className={cn("mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-md border transition-colors", on ? "border-brand bg-brand text-brand-ink" : "border-line bg-surface text-transparent hover:border-faint")}
+      className={cn("absolute right-4 top-4 flex h-6 w-6 items-center justify-center rounded-full border transition-colors", on ? "border-brand bg-brand text-canvas" : "border-[#4A4A4E] text-transparent hover:border-faint")}
     >
       <Check className="h-3.5 w-3.5" strokeWidth={3} />
     </button>
@@ -526,7 +527,7 @@ function Toggle({ on, onChange }: { on: boolean; onChange: (v: boolean) => void 
 function ConfirmRow({ n, text, tone }: { n: number; text: string; tone?: "warn" | "ask" }) {
   return (
     <li className="flex items-center gap-3">
-      <span className={cn("flex h-6 min-w-6 items-center justify-center rounded-md px-1.5 text-xs font-semibold tabular-nums", tone === "warn" ? "bg-warn-wash text-warn" : tone === "ask" ? "bg-ask-wash text-ask" : "bg-brand-wash text-brand")}>{n}</span>
+      <span className={cn("flex h-7 min-w-7 items-center justify-center rounded-full px-2 font-mono text-xs tabular-nums", tone === "warn" ? "bg-warn-wash text-warn" : tone === "ask" ? "bg-ask-wash text-ask" : "bg-brand-wash text-brand")}>{n}</span>
       <span className="text-soft">{text}</span>
     </li>
   );
@@ -534,24 +535,10 @@ function ConfirmRow({ n, text, tone }: { n: number; text: string; tone?: "warn" 
 
 function Stat({ n, label }: { n: number; label: string }) {
   return (
-    <Card className="p-3.5">
-      <div className="font-display text-2xl font-semibold tabular-nums">{n}</div>
-      <div className="text-xs text-soft">{label}</div>
-    </Card>
-  );
-}
-
-function SkeletonDraft() {
-  return (
-    <div className="space-y-4">
-      {[88, 64, 72, 56].map((w, i) => (
-        <Card key={i} className="p-5">
-          <div className="h-3 w-24 animate-pulse rounded bg-raised" />
-          <div className="mt-3 h-4 animate-pulse rounded bg-raised" style={{ width: `${w}%` }} />
-          <div className="mt-2 h-4 w-2/5 animate-pulse rounded bg-raised" />
-        </Card>
-      ))}
-      <p className="flex items-center gap-2 px-1 text-sm text-faint"><CircleDashed className="h-4 w-4 animate-spin" /> Building your draft…</p>
+    <div className="rounded-[18px] border border-line bg-surface p-5">
+      <div className="font-mono text-[34px] font-medium tabular-nums tracking-[-0.03em] text-brand">{String(n).padStart(2, "0")}</div>
+      <div className="mt-1 text-[13px] text-faint">{label}</div>
     </div>
   );
 }
+

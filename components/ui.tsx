@@ -18,12 +18,12 @@ export function Button({ variant = "secondary", size = "md", loading, icon, clas
       {...rest}
       disabled={disabled || loading}
       className={cn(
-        "inline-flex items-center justify-center gap-2 rounded-lg font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-50 whitespace-nowrap",
-        size === "sm" && "h-8 px-3 text-[13px]",
-        size === "md" && "h-9 px-3.5 text-sm",
-        size === "lg" && "h-11 px-5 text-[15px]",
-        variant === "primary" && "bg-brand text-brand-ink hover:bg-brand/90 shadow-sm",
-        variant === "secondary" && "border border-line bg-surface text-ink hover:bg-raised",
+        "inline-flex items-center justify-center gap-2 rounded-full font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-50 whitespace-nowrap",
+        size === "sm" && "h-8 px-3.5 text-[13px]",
+        size === "md" && "h-10 px-4 text-sm",
+        size === "lg" && "h-12 px-6 text-[15px]",
+        variant === "primary" && "bg-brand text-brand-ink font-semibold hover:bg-brand/85",
+        variant === "secondary" && "border border-[#2A2A2D] bg-transparent text-ink hover:bg-raised",
         variant === "ghost" && "text-soft hover:bg-raised hover:text-ink",
         variant === "danger" && "border border-line bg-surface text-bad hover:bg-bad-wash",
         className
@@ -36,15 +36,15 @@ export function Button({ variant = "secondary", size = "md", loading, icon, clas
 }
 
 export function Card({ className, children }: { className?: string; children: ReactNode }) {
-  return <div className={cn("rounded-xl border border-line bg-surface shadow-card", className)}>{children}</div>;
+  return <div className={cn("rounded-[18px] border border-line bg-surface", className)}>{children}</div>;
 }
 
 export function Badge({ tone = "neutral", children, className }: { tone?: "neutral" | "brand" | "warn" | "ask" | "good" | "bad"; children: ReactNode; className?: string }) {
   return (
     <span
       className={cn(
-        "inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[11.5px] font-medium leading-4",
-        tone === "neutral" && "bg-raised text-soft border border-line",
+        "inline-flex items-center gap-1 rounded-full px-2.5 py-1 font-mono text-[11.5px] leading-4",
+        tone === "neutral" && "text-soft border border-line",
         tone === "brand" && "bg-brand-wash text-brand",
         tone === "warn" && "bg-warn-wash text-warn",
         tone === "ask" && "bg-ask-wash text-ask",
@@ -58,7 +58,7 @@ export function Badge({ tone = "neutral", children, className }: { tone?: "neutr
   );
 }
 
-const AVATAR_TONES = ["bg-[#E7E1F7] text-[#5B3FB0]", "bg-[#DCEFE8] text-[#0C6B58]", "bg-[#FBE7D4] text-[#9A4A0B]", "bg-[#DDE8F7] text-[#2C5AA0]", "bg-[#F6DDE3] text-[#A1304E]", "bg-[#E9EBD8] text-[#5C6420]"];
+const AVATAR_TONES = ["bg-[#1E2A3A] text-[#8EC2FF]", "bg-[#2E2338] text-[#D3B2FF]", "bg-[#23331A] text-[#C6FF3D]", "bg-[#33241A] text-[#FFC08A]", "bg-[#3A1F2A] text-[#FF9EC0]", "bg-[#1A3330] text-[#7FE8D6]"];
 
 export function Avatar({ name, size = 24 }: { name?: string | null; size?: number }) {
   if (!name) {
@@ -75,7 +75,7 @@ export function Avatar({ name, size = 24 }: { name?: string | null; size?: numbe
 
 export function Empty({ icon, title, children }: { icon: ReactNode; title: string; children?: ReactNode }) {
   return (
-    <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-line px-6 py-14 text-center">
+    <div className="flex flex-col items-center justify-center rounded-[18px] border border-dashed border-[#3A3A3E] px-6 py-16 text-center">
       <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-full bg-raised text-faint">{icon}</div>
       <p className="font-medium">{title}</p>
       {children && <div className="mt-1 max-w-sm text-sm text-soft">{children}</div>}
@@ -85,10 +85,10 @@ export function Empty({ icon, title, children }: { icon: ReactNode; title: strin
 
 export function PageHeader({ title, sub, actions }: { title: string; sub?: string; actions?: ReactNode }) {
   return (
-    <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
+    <div className="mb-8 flex flex-wrap items-end justify-between gap-4">
       <div>
-        <h1 className="font-display text-[26px] font-semibold tracking-[-0.02em]">{title}</h1>
-        {sub && <p className="mt-1 text-sm text-soft">{sub}</p>}
+        <h1 className="font-display text-[34px] font-semibold leading-[1.05] tracking-[-0.03em] sm:text-[42px]">{title}</h1>
+        {sub && <p className="mt-2 max-w-2xl text-[15px] text-faint">{sub}</p>}
       </div>
       {actions && <div className="flex items-center gap-2">{actions}</div>}
     </div>
@@ -105,4 +105,4 @@ export function Field({ label, children, hint }: { label: string; children: Reac
   );
 }
 
-export const inputCls = "h-9 w-full rounded-lg border border-line bg-surface px-3 text-sm text-ink placeholder:text-faint focus:border-brand/60";
+export const inputCls = "h-11 w-full rounded-xl border border-line bg-surface px-3.5 text-sm text-ink placeholder:text-faint focus:border-brand/60";

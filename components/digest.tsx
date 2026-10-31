@@ -76,7 +76,7 @@ export function DigestView({ mode, data }: Shared) {
             </div>
             {digest.decisions.length > 0 && (
               <div className="mt-6 border-t border-line pt-5">
-                <h3 className="mb-2 text-[13px] font-semibold uppercase tracking-[0.06em] text-soft">Decisions this week</h3>
+                <h3 className="mb-2 font-mono text-xs uppercase tracking-[0.08em] text-faint">Decisions this week</h3>
                 <ul className="space-y-1.5 text-sm">
                   {digest.decisions.map((d: any) => (
                     <li key={d.id} className={cn(d.status === "superseded" && "text-faint line-through")}>{d.text}</li>

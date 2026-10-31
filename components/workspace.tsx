@@ -117,104 +117,84 @@ export function Workspace() {
   if (!data) {
     return (
       <div className="flex min-h-screen items-center justify-center">
-        <div className="flex items-center gap-3 text-sm text-soft"><span className="h-2 w-2 animate-pulseDot rounded-full bg-brand" /> Loading your workspace…</div>
+        <div className="flex items-center gap-3 text-sm text-soft"><span className="h-2 w-2 animate-pulseDot rounded-full bg-brand" /> <span className="font-mono text-xs tracking-[0.1em]">LOADING WORKSPACE</span></div>
       </div>
     );
   }
 
   const shared: Shared = { mode, data, reload, googleToken, setGoogleToken, go };
 
-  const sidebar = (
-    <div className="flex h-full flex-col">
-      <div className="flex items-center justify-between px-4 pb-4 pt-5">
-        <Logo size={26} />
-        <button className="rounded-md p-1 text-faint hover:text-ink lg:hidden" onClick={() => setNavOpen(false)} aria-label="Close menu"><X className="h-5 w-5" /></button>
-      </div>
-
-      <div className="mx-3 mb-4 rounded-lg border border-line bg-raised px-3 py-2.5">
-        <div className="text-[11px] font-medium uppercase tracking-[0.06em] text-faint">Workspace</div>
-        <div className="mt-0.5 truncate text-sm font-medium">{data.workspaceName}</div>
-      </div>
-
-      <nav className="flex-1 space-y-0.5 px-3">
-        {NAV.map((n) => (
-          <button
-            key={n.id}
-            onClick={() => go(n.id)}
-            className={cn(
-              "flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-sm transition-colors",
-              view === n.id ? "bg-surface font-medium text-ink shadow-card" : "text-soft hover:bg-surface/60 hover:text-ink"
-            )}
-          >
-            <n.icon className={cn("h-4 w-4", view === n.id ? "text-brand" : "")} />
-            <span className="flex-1 text-left">{n.label}</span>
-            {counts[n.id] ? <span className="text-xs tabular-nums text-faint">{counts[n.id]}</span> : null}
-          </button>
-        ))}
-      </nav>
-
-      <div className="space-y-3 border-t border-line p-3">
-        {mode === "org" ? (
-          googleToken ? (
-            <div className="flex items-center gap-2 px-1 text-xs text-good"><CalendarCheck className="h-3.5 w-3.5" /> Google Calendar connected</div>
-          ) : (
-            <button onClick={() => signInWithGoogle()} className="flex w-full items-center gap-2 rounded-lg px-1 text-left text-xs text-warn hover:underline">
-              <CalendarX className="h-3.5 w-3.5" /> Reconnect Google Calendar
-            </button>
-          )
+  const userMenu = (
+    <div className="flex items-center gap-2">
+      {mode === "org" ? (
+        googleToken ? (
+          <span className="hidden items-center gap-1.5 rounded-full border border-line px-3 py-1.5 text-xs text-brand md:inline-flex"><CalendarCheck className="h-3.5 w-3.5" /> Calendar on</span>
         ) : (
-          <div className="rounded-lg bg-brand-wash px-3 py-2 text-xs leading-relaxed text-brand">
-            You’re in the demo as <b>{data.me.name}</b>. Sign in to sync reminders to your own calendar.
-          </div>
-        )}
-        <div className="flex items-center gap-2.5 px-1">
-          <Avatar name={data.me.name} size={28} />
-          <div className="min-w-0 flex-1">
-            <div className="truncate text-sm font-medium">{data.me.name}</div>
-            <div className="truncate text-xs text-faint">{data.me.role || data.me.email}</div>
-          </div>
-          {mode === "demo" ? (
-            <button
-              title="Reset demo data"
-              aria-label="Reset demo data"
-              className="rounded-md p-1.5 text-faint hover:bg-raised hover:text-ink"
-              onClick={async () => { if (confirm("Reset the demo workspace to its starting data?")) { await api("demo", "/api/demo/reset", { method: "POST" }); await reload(); go("capture"); } }}
-            >
-              <RotateCcw className="h-4 w-4" />
-            </button>
-          ) : (
-            <button
-              title="Sign out"
-              aria-label="Sign out"
-              className="rounded-md p-1.5 text-faint hover:bg-raised hover:text-ink"
-              onClick={async () => { clearGoogleToken(); await browserDb()?.auth.signOut(); router.replace("/"); }}
-            >
-              <LogOut className="h-4 w-4" />
-            </button>
-          )}
-        </div>
-      </div>
+          <button onClick={() => signInWithGoogle()} className="hidden items-center gap-1.5 rounded-full border border-warn/40 px-3 py-1.5 text-xs text-warn hover:bg-warn-wash md:inline-flex">
+            <CalendarX className="h-3.5 w-3.5" /> Reconnect calendar
+          </button>
+        )
+      ) : (
+        <span className="hidden rounded-full border border-line px-3 py-1.5 font-mono text-[11px] text-faint md:inline-flex">DEMO · {data.me.name.toUpperCase()}</span>
+      )}
+      <span className="hidden text-[13px] text-faint lg:inline">{data.workspaceName}</span>
+      <Avatar name={data.me.name} size={32} />
+      {mode === "demo" ? (
+        <button
+          title="Reset demo data"
+          aria-label="Reset demo data"
+          className="rounded-full p-2 text-faint hover:bg-raised hover:text-ink"
+          onClick={async () => { if (confirm("Reset the demo workspace to its starting data?")) { await api("demo", "/api/demo/reset", { method: "POST" }); await reload(); go("capture"); } }}
+        >
+          <RotateCcw className="h-4 w-4" />
+        </button>
+      ) : (
+        <button
+          title="Sign out"
+          aria-label="Sign out"
+          className="rounded-full p-2 text-faint hover:bg-raised hover:text-ink"
+          onClick={async () => { clearGoogleToken(); await browserDb()?.auth.signOut(); router.replace("/"); }}
+        >
+          <LogOut className="h-4 w-4" />
+        </button>
+      )}
     </div>
   );
 
   return (
-    <div className="min-h-screen lg:pl-64">
-      <aside className="fixed inset-y-0 left-0 z-30 hidden w-64 border-r border-line bg-canvas lg:block">{sidebar}</aside>
-
-      {navOpen && (
-        <div className="fixed inset-0 z-40 lg:hidden">
-          <div className="absolute inset-0 bg-black/30" onClick={() => setNavOpen(false)} />
-          <aside className="absolute inset-y-0 left-0 w-72 border-r border-line bg-canvas shadow-pop">{sidebar}</aside>
+    <div className="min-h-screen bg-canvas">
+      <header className="sticky top-0 z-30 border-b border-[#1E1E21] bg-canvas/85 backdrop-blur">
+        <div className="mx-auto flex max-w-[1360px] items-center justify-between gap-4 px-4 py-4 sm:px-10">
+          <div className="flex min-w-0 items-center gap-7">
+            <button onClick={() => go("capture")} aria-label="Follow-through home"><Logo size={26} /></button>
+            <nav aria-label="Main" className="hidden items-center gap-1 lg:flex">
+              {NAV.map((n) => (
+                <button
+                  key={n.id}
+                  onClick={() => go(n.id)}
+                  className={cn("flex items-center gap-2 rounded-full px-3.5 py-2 text-sm transition-colors", view === n.id ? "bg-raised text-ink" : "text-faint hover:text-ink")}
+                >
+                  {n.label}
+                  {counts[n.id] ? <span className="font-mono text-[11px] text-faint">{String(counts[n.id]).padStart(2, "0")}</span> : null}
+                </button>
+              ))}
+            </nav>
+          </div>
+          {userMenu}
+          <button className="rounded-full p-2 text-soft lg:hidden" onClick={() => setNavOpen(!navOpen)} aria-label="Menu">{navOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}</button>
         </div>
-      )}
-
-      <header className="sticky top-0 z-20 flex items-center justify-between border-b border-line bg-canvas/85 px-4 py-3 backdrop-blur lg:hidden">
-        <button onClick={() => setNavOpen(true)} className="rounded-md p-1 text-soft" aria-label="Open menu"><Menu className="h-5 w-5" /></button>
-        <Logo size={24} />
-        <Avatar name={data.me.name} size={26} />
+        {navOpen && (
+          <nav aria-label="Main" className="flex flex-wrap gap-1 border-t border-[#1E1E21] px-4 py-3 lg:hidden">
+            {NAV.map((n) => (
+              <button key={n.id} onClick={() => go(n.id)} className={cn("flex items-center gap-2 rounded-full px-3.5 py-2 text-sm", view === n.id ? "bg-raised text-ink" : "text-faint")}>
+                <n.icon className="h-4 w-4" /> {n.label}
+              </button>
+            ))}
+          </nav>
+        )}
       </header>
 
-      <main className="mx-auto max-w-5xl px-4 py-8 sm:px-8 lg:py-10">
+      <main className="mx-auto max-w-[1360px] px-4 pb-40 pt-10 sm:px-10">
         {view === "capture" && <CaptureView {...shared} />}
         {view === "work" && <WorkView {...shared} />}
         {view === "decisions" && <DecisionsView {...shared} />}
