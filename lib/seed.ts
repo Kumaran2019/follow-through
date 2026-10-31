@@ -81,12 +81,13 @@ export async function seedDemo() {
     { workspace_id: ws, meeting_id: review, text: "Client demo every Thursday.", topic: "Cadence", made_by: "Ravi Kumar", made_on: reviewDate },
   ]);
 
-  await s.from("tasks").insert([
-    { workspace_id: ws, meeting_id: kickoff, title: "Finalize the checkout API spec", owner: "Priya Sharma", requested_by: "Ravi Kumar", due_date: addDays(today, 3) },
-    { workspace_id: ws, meeting_id: kickoff, title: "Draft the UAT test plan", owner: "Sana Khan", requested_by: "Ravi Kumar", due_date: addDays(today, 6) },
-    { workspace_id: ws, meeting_id: kickoff, title: "Send the revised SOW to the client", owner: "Ravi Kumar", requested_by: "Meera Iyer", due_date: addDays(today, -1) },
-    { workspace_id: ws, meeting_id: kickoff, title: "Share brand guidelines", owner: "Meera Iyer", requested_by: "Arjun Mehta", due_date: addDays(today, 2) },
-    { workspace_id: ws, meeting_id: review, title: "Rework checkout into a single page", owner: "Arjun Mehta", requested_by: "Priya Sharma", due_date: addDays(today, 4) },
+  const { error: taskErr } = await s.from("tasks").insert([
+    { workspace_id: ws, meeting_id: kickoff, title: "Finalize the checkout API spec", owner: "Priya Sharma", requested_by: "Ravi Kumar", due_date: addDays(today, 3), status: "open" },
+    { workspace_id: ws, meeting_id: kickoff, title: "Draft the UAT test plan", owner: "Sana Khan", requested_by: "Ravi Kumar", due_date: addDays(today, 6), status: "open" },
+    { workspace_id: ws, meeting_id: kickoff, title: "Send the revised SOW to the client", owner: "Ravi Kumar", requested_by: "Meera Iyer", due_date: addDays(today, -1), status: "open" },
+    { workspace_id: ws, meeting_id: kickoff, title: "Share brand guidelines", owner: "Meera Iyer", requested_by: "Arjun Mehta", due_date: addDays(today, 2), status: "open" },
+    { workspace_id: ws, meeting_id: review, title: "Rework checkout into a single page", owner: "Arjun Mehta", requested_by: "Priya Sharma", due_date: addDays(today, 4), status: "open" },
     { workspace_id: ws, meeting_id: review, title: "Set up the Thursday demo invite", owner: "Ravi Kumar", requested_by: "Meera Iyer", due_date: addDays(today, -2), status: "done" },
   ]);
+  if (taskErr) throw taskErr;
 }

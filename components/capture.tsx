@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import {
   AlertTriangle, ArrowRight, CalendarCheck, CalendarPlus, Check, CheckCircle2, ChevronDown, CircleDashed, Copy, HelpCircle,
   Keyboard, Loader2, Mic, Quote, Square, RefreshCw, Sparkles, Undo2, Wand2,
@@ -623,7 +624,7 @@ export function CaptureView({ mode, data, reload, googleToken, setGoogleToken, g
         </div>
       )}
 
-      {confirmOpen && (
+      {confirmOpen && typeof document !== "undefined" && createPortal(
         <div className="fixed inset-0 z-50 flex items-end justify-center p-4 sm:items-center" role="dialog" aria-modal="true" aria-label="Confirm posting">
           <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={() => setConfirmOpen(false)} />
           <div className="relative w-full max-w-md animate-rise rounded-[24px] border border-[#2A2A2D] bg-surface p-7 shadow-pop">
@@ -642,7 +643,7 @@ export function CaptureView({ mode, data, reload, googleToken, setGoogleToken, g
             </div>
           </div>
         </div>
-      )}
+      , document.body)}
     </div>
   );
 }

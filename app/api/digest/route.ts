@@ -29,7 +29,7 @@ export async function POST(req: Request) {
     const noDate = open.filter((t) => !t.due_date);
     const done = mine.filter((t) => t.status === "done");
     const owedToMe = all.filter((t) => t.status === "open" && samePerson(t.requested_by, person) && !samePerson(t.owner, person));
-    const recentDecisions = decisions ?? [];
+    const recentDecisions = (decisions ?? []).filter((d) => d.status === "active");
 
     const facts = {
       person,
@@ -39,7 +39,7 @@ export async function POST(req: Request) {
       no_deadline: noDate.map((t) => t.title),
       completed: done.map((t) => t.title),
       waiting_on_others: owedToMe.map((t) => `${t.owner || "Unassigned"}: ${t.title}${t.due_date ? ` (due ${t.due_date})` : ""}`),
-      decisions_this_week: recentDecisions.map((d) => `${d.text}${d.status === "superseded" ? " [later changed]" : ""}`),
+      decisions_this_week: recentDecisions.map((d) => d.text),
     };
 
     let brief = "";
